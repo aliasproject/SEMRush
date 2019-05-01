@@ -153,9 +153,8 @@ class SEMRush
 
         foreach ($organic_results as $row) {
             $keyword = $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD);
-            $position = (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION);
 
-            $results[$keyword][$position] = [
+            $results[$keyword] = [
                 'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
                 'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
                 'position_difference' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
@@ -241,7 +240,7 @@ class SEMRush
                 'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
                 'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
                 'position_difference' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
-                'adwords_block' => $row->getValue(SEMColumn::COLUMN_DOMAIN_ADWORD_POSITION),
+                'adword_position' => $row->getValue(SEMColumn::COLUMN_DOMAIN_ADWORD_POSITION),
                 'search_volume' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES),
                 'cpc' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE),
                 'traffic' => (float) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE),
