@@ -6,7 +6,6 @@ use Silktide\SemRushApi\Data\Column as SEMColumn;
 use Log;
 use Exception;
 
-
 class SEMRush
 {
     protected $client = null;
@@ -105,71 +104,75 @@ class SEMRush
      */
     public function collectDomainOrganic(string $url, Array $brands, int $limit=5, int $offset=0, string $region="en-us", $filters=null)
     {
-        $results = [];
-        $brand_filters = '';
+        try {
+            $results = [];
+            $brand_filters = '';
 
-        $brand_counter = 0;
-        foreach ($brands as $brand) {
-            $brand_filters .= (!$brand_counter) ? '-|Ph|Co|'.strtolower($brand) : '|-|Ph|Co|'.strtolower($brand);
-            $brand_counter++;
-        }
-
-        if ($filters) {
-            $filter_counter = 0;
-            foreach ($filters as $filter) {
-                if (!$filter['value']) continue;
-                $filter_string = $filter['sign'] . '|' . $filter['field'] . '|' . $filter['operator'] . '|' . $filter['value'];
-                $brand_filters .= '|' . $filter_string;
+            $brand_counter = 0;
+            foreach ($brands as $brand) {
+                $brand_filters .= (!$brand_counter) ? '-|Ph|Co|'.strtolower($brand) : '|-|Ph|Co|'.strtolower($brand);
+                $brand_counter++;
             }
+
+            if ($filters) {
+                $filter_counter = 0;
+                foreach ($filters as $filter) {
+                    if (!$filter['value']) continue;
+                    $filter_string = $filter['sign'] . '|' . $filter['field'] . '|' . $filter['operator'] . '|' . $filter['value'];
+                    $brand_filters .= '|' . $filter_string;
+                }
+            }
+
+            // Set client timeout
+            $this->client->setTimeout(30);
+
+            $organic_results = $this->client->getDomainOrganic(
+                $url,
+                [
+                    'database' => $this->regions[$region],
+                    'display_limit' => $limit + $offset,
+                    'display_offset' => $offset,
+                    'export_columns' => [
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE,
+                        SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES,
+                        SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE,
+                        SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE,
+                        SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY,
+                        SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS,
+                        SEMColumn::COLUMN_KEYWORD_INTEREST
+                    ],
+                    'display_sort' => 'nq_desc',
+                    'display_filter' => '-|Po|Gt|20|'.$brand_filters
+                ]
+            );
+
+            foreach ($organic_results as $row) {
+                $keyword = $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD);
+
+                $results[$keyword] = [
+                    'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
+                    'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
+                    'position_difference' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
+                    'search_volume' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES),
+                    'cpc' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE),
+                    'url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL),
+                    'traffic' => (float) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE),
+                    'traffic_cost' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE),
+                    'competition' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY),
+                    'number_of_results' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS),
+                    'trends' => $row->getValue(SEMColumn::COLUMN_KEYWORD_INTEREST)
+                ];
+            };
+
+            return $results;
+        } catch (Exception $e) {
+            return [];
         }
-
-        // Set client timeout
-        $this->client->setTimeout(30);
-
-        $organic_results = $this->client->getDomainOrganic(
-            $url,
-            [
-                'database' => $this->regions[$region],
-                'display_limit' => $limit + $offset,
-                'display_offset' => $offset,
-                'export_columns' => [
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE,
-                    SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES,
-                    SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE,
-                    SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE,
-                    SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY,
-                    SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS,
-                    SEMColumn::COLUMN_KEYWORD_INTEREST
-                ],
-                'display_sort' => 'nq_desc',
-                'display_filter' => '-|Po|Gt|20|'.$brand_filters
-            ]
-        );
-
-        foreach ($organic_results as $row) {
-            $keyword = $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD);
-
-            $results[$keyword] = [
-                'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
-                'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
-                'position_difference' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
-                'search_volume' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES),
-                'cpc' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE),
-                'url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL),
-                'traffic' => (float) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE),
-                'traffic_cost' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE),
-                'competition' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY),
-                'number_of_results' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS),
-                'trends' => $row->getValue(SEMColumn::COLUMN_KEYWORD_INTEREST)
-            ];
-        };
-
-        return $results;
     }
 
     /**
@@ -185,77 +188,83 @@ class SEMRush
      */
     public function collectDomainPaid(string $url, Array $brands, $limit=5, $offset=0, $region="en-us", $filters=null)
     {
-        $results = [];
-        $brand_filters = '';
+        try {
+            $results = [];
+            $brand_filters = '';
 
-        $brand_counter = 0;
-        foreach ($brands as $brand) {
-            $brand_filters .= (!$brand_counter) ? '-|Ph|Co|'.strtolower($brand) : '|-|Ph|Co|'.strtolower($brand);
-            $brand_counter++;
-        }
-
-        if ($filters) {
-            $filter_counter = 0;
-            foreach ($filters as $filter) {
-                if (!$filter['value']) continue;
-                $filter_string = $filter['sign'] . '|' . $filter['field'] . '|' . $filter['operator'] . '|' . $filter['value'];
-                $brand_filters .= '|' . $filter_string;
+            $brand_counter = 0;
+            foreach ($brands as $brand) {
+                $brand_filters .= (!$brand_counter) ? '-|Ph|Co|'.strtolower($brand) : '|-|Ph|Co|'.strtolower($brand);
+                $brand_counter++;
             }
+
+            if ($filters) {
+                $filter_counter = 0;
+                foreach ($filters as $filter) {
+                    if (!$filter['value']) continue;
+                    $filter_string = $filter['sign'] . '|' . $filter['field'] . '|' . $filter['operator'] . '|' . $filter['value'];
+                    $brand_filters .= '|' . $filter_string;
+                }
+            }
+
+            $paid_results = $this->client->getDomainAdwords(
+                $url,
+                [
+                    'database' => $this->regions[$region],
+                    'display_limit' => $limit + $offset,
+                    'display_offset' => $offset,
+                    'export_columns' => [
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE,
+                        SEMColumn::COLUMN_DOMAIN_ADWORD_POSITION,
+                        SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES,
+                        SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE,
+                        SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE,
+                        SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY,
+                        SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS,
+                        SEMColumn::COLUMN_KEYWORD_INTEREST,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TEXT,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_VISIBLE_URL,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL
+                    ],
+                    'display_sort' => 'nq_desc',
+                    'display_filter' => $brand_filters
+                ]
+            );
+
+            $paid_data = [];
+            foreach ($paid_results as $row) {
+                $keyword = $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD);
+
+                $results[$keyword] = [
+                    'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
+                    'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
+                    'position_difference' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
+                    'adword_position' => $row->getValue(SEMColumn::COLUMN_DOMAIN_ADWORD_POSITION),
+                    'search_volume' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES),
+                    'cpc' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE),
+                    'traffic' => (float) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE),
+                    'traffic_cost' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE),
+                    'competition' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY),
+                    'number_of_results' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS),
+                    'trends' => $row->getValue(SEMColumn::COLUMN_KEYWORD_INTEREST),
+                    'title' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE),
+                    'description' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TEXT),
+                    'visible_url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_VISIBLE_URL),
+                    'url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL)
+                ];
+            }
+
+            return $results;
+        } catch (Exception $e) {
+            Log::info($e->getMessage());
+
+            return [];
         }
-
-        $paid_results = $this->client->getDomainAdwords(
-            $url,
-            [
-                'database' => $this->regions[$region],
-                'display_limit' => $limit + $offset,
-                'display_offset' => $offset,
-                'export_columns' => [
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE,
-                    SEMColumn::COLUMN_DOMAIN_ADWORD_POSITION,
-                    SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES,
-                    SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE,
-                    SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE,
-                    SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY,
-                    SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS,
-                    SEMColumn::COLUMN_KEYWORD_INTEREST,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TEXT,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_VISIBLE_URL,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL
-                ],
-                'display_sort' => 'nq_desc',
-                'display_filter' => $brand_filters
-            ]
-        );
-
-        $paid_data = [];
-        foreach ($paid_results as $row) {
-            $keyword = $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD);
-
-            $results[$keyword] = [
-                'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
-                'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
-                'position_difference' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
-                'adword_position' => $row->getValue(SEMColumn::COLUMN_DOMAIN_ADWORD_POSITION),
-                'search_volume' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES),
-                'cpc' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_CLICK_PRICE),
-                'traffic' => (float) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TRAFFIC_PERCENTAGE),
-                'traffic_cost' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_ESTIMATED_PRICE),
-                'competition' => (float) $row->getValue(SEMColumn::COLUMN_KEYWORD_COMPETITIVE_AD_DENSITY),
-                'number_of_results' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_ORGANIC_NUMBER_OF_RESULTS),
-                'trends' => $row->getValue(SEMColumn::COLUMN_KEYWORD_INTEREST),
-                'title' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE),
-                'description' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TEXT),
-                'visible_url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_VISIBLE_URL),
-                'url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL)
-            ];
-        }
-
-        return $results;
     }
 
     /**
@@ -271,64 +280,68 @@ class SEMRush
      */
     public function collectDomainPlaSearchKeywords(string $url, Array $brands, $limit=5, $offset=0, $region="en-us", $filters=null)
     {
-        $results = [];
-        $brand_filters = '';
+        try {
+            $results = [];
+            $brand_filters = '';
 
-        $brand_counter = 0;
-        foreach ($brands as $brand) {
-            $brand_filters .= (!$brand_counter) ? '-|Ph|Co|'.strtolower($brand) : '|-|Ph|Co|'.strtolower($brand);
-            $brand_counter++;
-        }
-
-        if ($filters) {
-            $filter_counter = 0;
-            foreach ($filters as $filter) {
-                if (!$filter['value']) continue;
-                $filter_string = $filter['sign'] . '|' . $filter['field'] . '|' . $filter['operator'] . '|' . $filter['value'];
-                $brand_filters .= '|' . $filter_string;
+            $brand_counter = 0;
+            foreach ($brands as $brand) {
+                $brand_filters .= (!$brand_counter) ? '-|Ph|Co|'.strtolower($brand) : '|-|Ph|Co|'.strtolower($brand);
+                $brand_counter++;
             }
+
+            if ($filters) {
+                $filter_counter = 0;
+                foreach ($filters as $filter) {
+                    if (!$filter['value']) continue;
+                    $filter_string = $filter['sign'] . '|' . $filter['field'] . '|' . $filter['operator'] . '|' . $filter['value'];
+                    $brand_filters .= '|' . $filter_string;
+                }
+            }
+
+            $adhistory_results = $this->client->getDomainPlaSearchKeywords(
+                $url,
+                [
+                    'database' => $this->regions[$region],
+                    'display_limit' => $limit + $offset,
+                    'display_offset' => $offset,
+                    'export_columns' => [
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE,
+                        SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_SHOP_NAME,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE,
+                        SEMColumn::COLUMN_DOMAIN_KEYWORD_PRODUCT_PRICE,
+                        SEMColumn::COLUMN_TIMESTAMP
+                    ],
+                    'display_sort' => 'nq_desc',
+                    'display_filter' => $brand_filters
+                ]
+            );
+
+            foreach ($adhistory_results as $row) {
+                $keyword = $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD);
+
+                $results[$keyword] = [
+                    'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
+                    'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
+                    'position_difference' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
+                    'search_volume' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES),
+                    'shop_name' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_SHOP_NAME),
+                    'url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL),
+                    'title' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE),
+                    'product_price' => (float) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PRODUCT_PRICE),
+                    'timestamp' => (int) $row->getValue(SEMColumn::COLUMN_TIMESTAMP)
+                ];
+            };
+
+            return $results;
+        } catch (Exception $e) {
+            return [];
         }
-
-        $adhistory_results = $this->client->getDomainPlaSearchKeywords(
-            $url,
-            [
-                'database' => $this->regions[$region],
-                'display_limit' => $limit + $offset,
-                'display_offset' => $offset,
-                'export_columns' => [
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE,
-                    SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_SHOP_NAME,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE,
-                    SEMColumn::COLUMN_DOMAIN_KEYWORD_PRODUCT_PRICE,
-                    SEMColumn::COLUMN_TIMESTAMP
-                ],
-                'display_sort' => 'nq_desc',
-                'display_filter' => $brand_filters
-            ]
-        );
-
-        foreach ($adhistory_results as $row) {
-            $keyword = $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD);
-
-            $results[$keyword] = [
-                'position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_ORGANIC_POSITION),
-                'previous_position' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PREVIOUS_ORGANIC_POSITION),
-                'position_difference' => (int) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_POSITION_DIFFERENCE),
-                'search_volume' => (int) $row->getValue(SEMColumn::COLUMN_KEYWORD_AVERAGE_QUERIES),
-                'shop_name' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_SHOP_NAME),
-                'url' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_TARGET_URL),
-                'title' => $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_AD_TITLE),
-                'product_price' => (float) $row->getValue(SEMColumn::COLUMN_DOMAIN_KEYWORD_PRODUCT_PRICE),
-                'timestamp' => (int) $row->getValue(SEMColumn::COLUMN_TIMESTAMP)
-            ];
-        };
-
-        return $results;
     }
 
     /**
