@@ -354,6 +354,12 @@ class SEMRush
     public function collectKeywordDifficulty($phrase, $region="en-us")
     {
         $results = [];
+        
+        // Increase Timeout
+        $this->client->setTimeout(30);
+        $this->client->setConnectTimeout(30);
+        
+        // Get Difficulty
         $keyword_results = $this->client->getKeywordDifficulty(
             $phrase,
             [
