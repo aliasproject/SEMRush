@@ -37,6 +37,10 @@ class SEMRush
             // Set Cache
             $cache = new ArrayCachePool();
             $this->client->setCache($cache);
+            
+            // Set Timeout
+            $this->client->setTimeout(30);
+            $this->client->setConnectTimeout(30);
         } catch (Exception $e) {
             Log::error($e->getMessage());
             return false;
@@ -354,10 +358,6 @@ class SEMRush
     public function collectKeywordDifficulty($phrase, $region="en-us")
     {
         $results = [];
-        
-        // Increase Timeout
-        $this->client->setTimeout(30);
-        $this->client->setConnectTimeout(30);
         
         // Get Difficulty
         $keyword_results = $this->client->getKeywordDifficulty(
